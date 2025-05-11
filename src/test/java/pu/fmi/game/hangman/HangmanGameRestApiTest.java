@@ -6,9 +6,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import static org.assertj.core.api.Assertions.assertThat;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import pu.fmi.game.hangman.model.entity.HangmanGame;
-import pu.fmi.game.hangman.model.entity.Status;
+import pu.fmi.game.hangman.model.service.GameService;
 
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 public class HangmanGameRestApiTest {
@@ -16,58 +17,46 @@ public class HangmanGameRestApiTest {
   @Autowired
   WebTestClient client;
 
+  @Autowired
+  GameService gameService;
+
   @Test
   void testGetGameById() {
-    client
+
+    HangmanGame createdGame = client
         .post()
-        .uri("/hangman-games")
+        .uri("/hangman-games?playerId=1")
         .accept(MediaType.APPLICATION_JSON)
         .exchange()
         .expectStatus()
-        .isOk();
+        .isOk()
+        .expectBody(HangmanGame.class)
+        .returnResult()
+        .getResponseBody();
 
     client
         .get()
-        .uri("/hangman-games/{id}", 1L)
+        .uri("/hangman-games/{id}", createdGame.getId())
         .accept(MediaType.APPLICATION_JSON)
         .exchange()
         .expectStatus()
         .isOk()
         .expectBody()
-          .jsonPath("$.id").isEqualTo(1)
-          .jsonPath("$.status").isEqualTo(Status.IN_PROGRESS)
-          .jsonPath("$.currentWrongGuess").isEqualTo(0)
-          .jsonPath("$.wrongGuesses").isEqualTo(6);
+          .jsonPath("$.id").isEqualTo(createdGame.getId())
+          .jsonPath("$.status").isEqualTo(createdGame.getStatus())
+          .jsonPath("$.currentWrongGuess").isEqualTo(createdGame.getCurrentWrongGuess())
+          .jsonPath("$.wrongGuesses").isEqualTo(createdGame.getWrongGuesses());
   }
 
-
   @Test
-  void testGetAllGames() {
+  void testListTop10HangmanGames(@Autowired WebTestClient client) {
 
-    // Първоначално създаване на 3 игри
-    client
-        .post()
-        .uri("/hangman-games")
-        .accept(MediaType.APPLICATION_JSON)
-        .exchange()
-        .expectStatus()
-        .isOk();
-    client
-        .post()
-        .uri("/hangman-games")
-        .accept(MediaType.APPLICATION_JSON)
-        .exchange()
-        .expectStatus()
-        .isOk();
-    client
-        .post()
-        .uri("/hangman-games")
-        .accept(MediaType.APPLICATION_JSON)
-        .exchange()
-        .expectStatus()
-        .isOk();
+    HangmanGame oldGame = gameService.startNewGame(1L);
 
-    // Тестване на GET /hangman-games което би трябвало да връща списък със всички игри
+    for (int i = 0; i < 10; i++) {
+      gameService.startNewGame(1L);
+    }
+
     client
         .get()
         .uri("/hangman-games")
@@ -76,7 +65,12 @@ public class HangmanGameRestApiTest {
         .expectStatus()
         .isOk()
         .expectBodyList(HangmanGame.class)
-        .hasSize(3);
+        .hasSize(10)
+        .value(games -> {
+          assertThat(games).noneMatch(game ->
+              oldGame.getId().equals(game.getId())
+          );
+        });
   }
 
 }

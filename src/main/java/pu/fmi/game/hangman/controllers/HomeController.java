@@ -33,7 +33,7 @@ public class HomeController {
   @PostMapping("start")
   public String startGame(Model model){
     System.out.println("Start Game");
-    HangmanGame hangmanGame = hangmanGameService.startNewGame();
+    HangmanGame hangmanGame = hangmanGameService.startNewGame(1L);
     model.addAttribute("hangmanGame", hangmanGame);
     model.addAttribute("letters", GameUtils.getLetters());
     return "play-game.html";
@@ -45,10 +45,6 @@ public class HomeController {
       @RequestParam Character guessLetter){
 
     HangmanGame hangmanGame = hangmanGameService.makeGuess(id, guessLetter);
-
-    // TODO: Добавете логика, за край на
-    //  играта - да се показва game-end.html и
-    //  съобщение "Спечелена"  или "Загубена"
 
     if(hangmanGame.getStatus().equals(Status.WON)){
       ModelAndView modelAndViewWon =
